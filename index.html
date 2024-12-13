@@ -22,7 +22,6 @@
 <body>
     <canvas id="gameCanvas"></canvas>
     <script>
-        // Game setup
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
         canvas.width = window.innerWidth;
@@ -33,77 +32,29 @@
             x: canvas.width / 2,
             y: canvas.height / 2,
             radius: 30,
-            speed: 5,
             velocityX: 0,
             velocityY: 0,
         };
 
-        // Objects to be "eaten"
-        const objects = [];
-        const numObjects = 20;
-
-        // Generate random objects
-        function createObjects(count) {
-            for (let i = 0; i < count; i++) {
-                const radius = Math.random() * 20 + 10;
-                objects.push({
-                    x: Math.random() * canvas.width,
-                    y: Math.random() * canvas.height,
-                    radius: radius,
-                    color: `hsl(${Math.random() * 360}, 70%, 60%)`,
-                });
-            }
-        }
-
-        createObjects(numObjects);
-
-        // Keyboard controls (desktop)
-        const keys = {};
-        window.addEventListener("keydown", (e) => (keys[e.key] = true));
-        window.addEventListener("keyup", (e) => (keys[e.key] = false));
-
-        function handleKeyboardInput() {
-            if (keys["ArrowUp"] || keys["w"]) hole.velocityY = -hole.speed;
-            else if (keys["ArrowDown"] || keys["s"]) hole.velocityY = hole.speed;
-            else hole.velocityY = 0;
-
-            if (keys["ArrowLeft"] || keys["a"]) hole.velocityX = -hole.speed;
-            else if (keys["ArrowRight"] || keys["d"]) hole.velocityX = hole.speed;
-            else hole.velocityX = 0;
-        }
-
-        // Touch controls (mobile)
-        let touchStartX = 0, touchStartY = 0;
+        // Debugging touch events
         window.addEventListener("touchstart", (e) => {
-            const touch = e.touches[0];
-            touchStartX = touch.clientX;
-            touchStartY = touch.clientY;
+            console.log("Touch started:", e.touches[0]);
         });
 
         window.addEventListener("touchmove", (e) => {
+            console.log("Touch moving:", e.touches[0]);
             const touch = e.touches[0];
-            const deltaX = touch.clientX - touchStartX;
-            const deltaY = touch.clientY - touchStartY;
 
-            hole.velocityX = deltaX * 0.05;
-            hole.velocityY = deltaY * 0.05;
+            // Update hole's position based on touch
+            hole.x = touch.clientX;
+            hole.y = touch.clientY;
 
-            touchStartX = touch.clientX;
-            touchStartY = touch.clientY;
+            e.preventDefault(); // Prevent scrolling
         });
 
         window.addEventListener("touchend", () => {
-            hole.velocityX = 0;
-            hole.velocityY = 0;
+            console.log("Touch ended");
         });
-
-        // Collision detection
-        function isColliding(hole, obj) {
-            const dx = hole.x - obj.x;
-            const dy = hole.y - obj.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            return distance < hole.radius;
-        }
 
         // Game loop
         function gameLoop() {
@@ -115,31 +66,6 @@
             ctx.fillStyle = "black";
             ctx.fill();
             ctx.closePath();
-
-            // Handle movement
-            handleKeyboardInput();
-            hole.x += hole.velocityX;
-            hole.y += hole.velocityY;
-
-            // Keep hole within bounds
-            hole.x = Math.max(hole.radius, Math.min(canvas.width - hole.radius, hole.x));
-            hole.y = Math.max(hole.radius, Math.min(canvas.height - hole.radius, hole.y));
-
-            // Draw objects and check for collisions
-            for (let i = objects.length - 1; i >= 0; i--) {
-                const obj = objects[i];
-                ctx.beginPath();
-                ctx.arc(obj.x, obj.y, obj.radius, 0, Math.PI * 2);
-                ctx.fillStyle = obj.color;
-                ctx.fill();
-                ctx.closePath();
-
-                // Check collision
-                if (isColliding(hole, obj)) {
-                    hole.radius += obj.radius * 0.2;
-                    objects.splice(i, 1);
-                }
-            }
 
             requestAnimationFrame(gameLoop);
         }
