@@ -36,24 +36,40 @@
             velocityY: 0,
         };
 
-        // Debugging touch events
-        window.addEventListener("touchstart", (e) => {
-            console.log("Touch started:", e.touches[0]);
-        });
+        // Objects (dots)
+        const objects = [];
+        const numObjects = 20; // Number of dots to spawn
 
+        // Utility to generate random dots
+        function createObjects(count) {
+            for (let i = 0; i < count; i++) {
+                const radius = Math.random() * 20 + 10; // Dot size
+                objects.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    radius: radius,
+                    color: `hsl(${Math.random() * 360}, 70%, 60%)`,
+                });
+            }
+        }
+
+        // Spawn initial objects
+        createObjects(numObjects);
+
+        // Collision detection
+        function isColliding(hole, obj) {
+            const dx = hole.x - obj.x;
+            const dy = hole.y - obj.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            return distance < hole.radius;
+        }
+
+        // Touch controls (mobile)
         window.addEventListener("touchmove", (e) => {
-            console.log("Touch moving:", e.touches[0]);
             const touch = e.touches[0];
-
-            // Update hole's position based on touch
             hole.x = touch.clientX;
             hole.y = touch.clientY;
-
             e.preventDefault(); // Prevent scrolling
-        });
-
-        window.addEventListener("touchend", () => {
-            console.log("Touch ended");
         });
 
         // Game loop
@@ -67,9 +83,27 @@
             ctx.fill();
             ctx.closePath();
 
+            // Draw dots and check collisions
+            for (let i = objects.length - 1; i >= 0; i--) {
+                const obj = objects[i];
+                ctx.beginPath();
+                ctx.arc(obj.x, obj.y, obj.radius, 0, Math.PI * 2);
+                ctx.fillStyle = obj.color;
+                ctx.fill();
+                ctx.closePath();
+
+                // Check if hole "eats" the dot
+                if (isColliding(hole, obj)) {
+                    // Grow the hole and remove the dot
+                    hole.radius += obj.radius * 0.1; // Grow based on dot size
+                    objects.splice(i, 1);
+                }
+            }
+
             requestAnimationFrame(gameLoop);
         }
 
+        // Start the game
         gameLoop();
     </script>
 </body>
