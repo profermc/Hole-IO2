@@ -31,6 +31,7 @@
         let walls = [];
         let maxHoleSize = 300;
         let gameWon = false;
+        let paused = false;
 
         function clamp(value, min, max) {
             return Math.max(min, Math.min(max, value));
@@ -96,6 +97,7 @@
             objects = [];
             createObjects(50);
             gameWon = false;
+            paused = false;
             requestAnimationFrame(gameLoop);
         }
 
@@ -126,6 +128,7 @@
                     hole.y + hole.radius > wall.y &&
                     hole.y - hole.radius < wall.y + wall.height
                 ) {
+                    // Resolve collision by pushing the hole back
                     if (hole.x < wall.x) hole.x = wall.x - hole.radius;
                     if (hole.x > wall.x + wall.width) hole.x = wall.x + wall.width + hole.radius;
                     if (hole.y < wall.y) hole.y = wall.y - hole.radius;
@@ -134,13 +137,39 @@
             });
         }
 
+        function togglePause() {
+            paused = !paused;
+            if (!paused) {
+                requestAnimationFrame(gameLoop);
+            } else {
+                showPauseScreen();
+            }
+        }
+
+        function showPauseScreen() {
+            ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "white";
+            ctx.font = "48px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText("Paused", canvas.width / 2, canvas.height / 2);
+        }
+
+        window.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") {
+                togglePause();
+            }
+        });
+
         canvas.addEventListener("mousemove", (e) => {
+            if (paused) return;
             const rect = canvas.getBoundingClientRect();
             hole.x = clamp(e.clientX - rect.left, hole.radius, canvas.width - hole.radius);
             hole.y = clamp(e.clientY - rect.top, hole.radius, canvas.height - hole.radius);
         });
 
         canvas.addEventListener("touchmove", (e) => {
+            if (paused) return;
             const touch = e.touches[0];
             const rect = canvas.getBoundingClientRect();
             hole.x = clamp(touch.clientX - rect.left, hole.radius, canvas.width - hole.radius);
@@ -149,7 +178,7 @@
         });
 
         function gameLoop() {
-            if (gameWon) return;
+            if (gameWon || paused) return;
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
