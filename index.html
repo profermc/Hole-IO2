@@ -1,162 +1,122 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hole.io Game</title>
-    <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            background-color: #f2f2f2;
+// Performance: Cap object count to improve rendering performance
+if (objects.length > 100) objects.splice(0, objects.length - 100);
+
+// Enhance object creation with non-overlapping checks
+function createObjects(count) {
+    for (let i = 0; i < count; i++) {
+        let x, y, radius, valid;
+        do {
+            radius = Math.random() * 20 + 10;
+            x = Math.random() * (canvas.width / scale - 2 * radius) + radius;
+            y = Math.random() * (canvas.height / scale - 2 * radius) + radius;
+            valid = objects.every(obj => {
+                const dx = obj.x - x;
+                const dy = obj.y - y;
+                return Math.sqrt(dx * dx + dy * dy) > obj.radius + radius;
+            });
+        } while (!valid);
+        objects.push({ x, y, radius, color: `hsl(${Math.random() * 360}, 70%, 60%)` });
+    }
+}
+
+// Dynamic growth to balance gameplay
+function isColliding(hole, obj) {
+    const dx = hole.x - obj.x;
+    const dy = hole.y - obj.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    if (distance < hole.radius - obj.radius * 0.5) {
+        const growthRate = Math.max(obj.radius * 0.05, 3);
+        hole.radius += growthRate * (1 - hole.radius / maxHoleSize);
+        return true;
+    }
+    return false;
+}
+
+// Moving objects for dynamic gameplay
+function moveObjects() {
+    objects.forEach(obj => {
+        obj.x += Math.random() * 2 - 1;
+        obj.y += Math.random() * 2 - 1;
+        obj.x = clamp(obj.x, obj.radius, canvas.width / scale - obj.radius);
+        obj.y = clamp(obj.y, obj.radius, canvas.height / scale - obj.radius);
+    });
+}
+
+// Add time limit for win condition
+const timeLimit = 120000; // 2 minutes
+let startTime = Date.now();
+
+function checkWin() {
+    const timeElapsed = Date.now() - startTime;
+    if (hole.radius >= maxHoleSize || timeElapsed >= timeLimit) {
+        gameWon = true;
+        showWinScreen();
+    }
+}
+
+// Audio feedback for better immersion
+const eatSound = new Audio("eat.mp3"); // Add a sound file named 'eat.mp3'
+const winSound = new Audio("win.mp3"); // Add a sound file named 'win.mp3'
+
+function playEatSound() {
+    eatSound.play();
+}
+
+function playWinSound() {
+    winSound.play();
+}
+
+// Visual absorption effect
+function absorbEffect(obj) {
+    ctx.beginPath();
+    ctx.arc(obj.x, obj.y, obj.radius, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
+    ctx.fill();
+    ctx.closePath();
+}
+
+// Integrate enhancements into the game loop
+function gameLoop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw the hole
+    ctx.beginPath();
+    ctx.arc(hole.x, hole.y, hole.radius, 0, Math.PI * 2);
+    ctx.fillStyle = "black";
+    ctx.fill();
+    ctx.closePath();
+
+    // Draw dots and check collisions
+    for (let i = objects.length - 1; i >= 0; i--) {
+        const obj = objects[i];
+        ctx.beginPath();
+        ctx.arc(obj.x, obj.y, obj.radius, 0, Math.PI * 2);
+        ctx.fillStyle = obj.color;
+        ctx.fill();
+        ctx.closePath();
+
+        if (isColliding(hole, obj)) {
+            playEatSound();
+            absorbEffect(obj);
+            objects.splice(i, 1);
         }
-        canvas {
-            display: block;
-            background-color: #d9f0f8;
-        }
-    </style>
-</head>
-<body>
-    <canvas id="gameCanvas"></canvas>
-    <script>
-        const canvas = document.getElementById("gameCanvas");
-        const ctx = canvas.getContext("2d");
+    }
 
-        // Adjust canvas for high-resolution displays
-        const scale = window.devicePixelRatio || 1;
-        canvas.width = window.innerWidth * scale;
-        canvas.height = window.innerHeight * scale;
-        ctx.scale(scale, scale);
+    // Move objects for dynamic gameplay
+    moveObjects();
 
-        // Game variables
-        const hole = { x: canvas.width / 2, y: canvas.height / 2, radius: 50 };
-        const maxHoleSize = Math.min(canvas.width, canvas.height) * 0.3; // 30% of smaller dimension
-        const objects = [];
-        const numObjects = 20;
-        let gameWon = false;
+    // Allow the hole to extend slightly beyond the edges
+    hole.x = clamp(hole.x, -hole.radius / 2, canvas.width / scale + hole.radius / 2);
+    hole.y = clamp(hole.y, -hole.radius / 2, canvas.height / scale + hole.radius / 2);
 
-        // Utility function: Clamp values to stay within limits
-        function clamp(value, min, max) {
-            return Math.max(min, Math.min(max, value));
-        }
+    // Check for win condition
+    checkWin();
 
-        // Create objects (dots)
-        function createObjects(count) {
-            const initialHoleSize = 50;
-            for (let i = 0; i < count; i++) {
-                let valid = false;
-                let x, y, radius;
-                while (!valid) {
-                    radius = Math.random() * 20 + 10;
-                    x = Math.random() * (canvas.width / scale - 2 * radius) + radius;
-                    y = Math.random() * (canvas.height / scale - 2 * radius) + radius;
-                    valid = objects.every(obj => {
-                        const dx = obj.x - x;
-                        const dy = obj.y - y;
-                        const distance = Math.sqrt(dx * dx + dy * dy);
-                        return distance >= obj.radius + radius;
-                    });
-                }
-                objects.push({
-                    x,
-                    y,
-                    radius,
-                    color: `hsl(${Math.random() * 360}, 70%, 60%)`,
-                });
-            }
-        }
+    // Respawn dots if necessary
+    if (objects.length < 5 && !gameWon) {
+        createObjects(10);
+    }
 
-        // Collision detection
-        function isColliding(hole, obj) {
-            const dx = hole.x - obj.x;
-            const dy = hole.y - obj.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            return distance < hole.radius - obj.radius * 0.5; // Adjust for radius
-        }
-
-        // Controls for touch and mouse
-        window.addEventListener("touchmove", (e) => {
-            const touch = e.touches[0];
-            hole.x = clamp(touch.clientX, hole.radius, canvas.width / scale - hole.radius);
-            hole.y = clamp(touch.clientY, hole.radius, canvas.height / scale - hole.radius);
-        });
-
-        window.addEventListener("mousemove", (e) => {
-            const rect = canvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
-            hole.x = clamp(mouseX, hole.radius, canvas.width / scale - hole.radius);
-            hole.y = clamp(mouseY, hole.radius, canvas.height / scale - hole.radius);
-        });
-
-        // Show "You Won" screen
-        function showWinScreen() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "black";
-            ctx.font = "bold 50px Arial";
-            ctx.textAlign = "center";
-            ctx.fillText("You Won!", canvas.width / 2 / scale, canvas.height / 2 / scale);
-            ctx.font = "20px Arial";
-            ctx.fillText("Game restarting...", canvas.width / 2 / scale, canvas.height / 2 / scale + 50);
-
-            // Reset game after 3 seconds
-            setTimeout(resetGame, 3000);
-        }
-
-        // Reset game
-        function resetGame() {
-            hole.radius = 50;
-            hole.x = canvas.width / 2 / scale;
-            hole.y = canvas.height / 2 / scale;
-            objects.length = 0;
-            createObjects(numObjects);
-            gameWon = false;
-        }
-
-        // Game loop
-        function gameLoop() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // Draw the hole
-            ctx.beginPath();
-            ctx.arc(hole.x, hole.y, hole.radius, 0, Math.PI * 2);
-            ctx.fillStyle = "black";
-            ctx.fill();
-            ctx.closePath();
-
-            // Draw dots and check collisions
-            for (let i = objects.length - 1; i >= 0; i--) {
-                const obj = objects[i];
-                ctx.beginPath();
-                ctx.arc(obj.x, obj.y, obj.radius, 0, Math.PI * 2);
-                ctx.fillStyle = obj.color;
-                ctx.fill();
-                ctx.closePath();
-
-                if (isColliding(hole, obj)) {
-                    hole.radius += Math.min(obj.radius * 0.05, 5);
-                    objects.splice(i, 1);
-                }
-            }
-
-            // Check for win condition
-            if (hole.radius >= maxHoleSize && !gameWon) {
-                gameWon = true;
-                showWinScreen();
-                return;
-            }
-
-            // Respawn dots if necessary
-            if (objects.length < 5 && !gameWon) {
-                createObjects(10);
-            }
-
-            requestAnimationFrame(gameLoop);
-        }
-
-        // Initialize game
-        createObjects(numObjects);
-        gameLoop();
-    </script>
-</body>
-</html>
+    requestAnimationFrame(gameLoop);
+}
+      
