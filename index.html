@@ -15,42 +15,48 @@
 <body>
     <canvas id="gameCanvas"></canvas>
     <script>
-        // Canvas setup
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
 
-        // Responsive canvas dimensions
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        // Initialize black hole
         let hole = {
             x: canvas.width / 2,
             y: canvas.height / 2,
-            radius: 20, // Initial size of the black hole
+            radius: 20,
         };
 
-        // Object storage
         let objects = [];
-        let maxHoleSize = 300; // Maximum size of the black hole
+        let walls = [];
+        let maxHoleSize = 300;
         let gameWon = false;
 
-        // Utility function to clamp values within bounds
         function clamp(value, min, max) {
             return Math.max(min, Math.min(max, value));
         }
 
-        // Create objects randomly
         function createObjects(count) {
             for (let i = 0; i < count; i++) {
                 const radius = Math.random() * 20 + 10;
                 const x = Math.random() * (canvas.width - 2 * radius) + radius;
                 const y = Math.random() * (canvas.height - 2 * radius) + radius;
-                objects.push({ x, y, radius, color: `hsl(${Math.random() * 360}, 70%, 60%)` });
+                objects.push({
+                    x, 
+                    y, 
+                    radius, 
+                    color: `hsl(${Math.random() * 360}, 70%, 60%)`,
+                    dx: Math.random() * 2 - 1, // Random horizontal speed
+                    dy: Math.random() * 2 - 1, // Random vertical speed
+                });
             }
         }
 
-        // Check collision between black hole and an object
+        function createWalls() {
+            walls.push({ x: 200, y: 150, width: 300, height: 20 }); // Horizontal wall
+            walls.push({ x: 400, y: 400, width: 20, height: 300 }); // Vertical wall
+        }
+
         function isColliding(hole, obj) {
             const dx = hole.x - obj.x;
             const dy = hole.y - obj.y;
@@ -58,17 +64,15 @@
             return distance < hole.radius + obj.radius * 0.5;
         }
 
-        // Game logic for consuming objects
         function consumeObjects() {
             for (let i = objects.length - 1; i >= 0; i--) {
                 if (isColliding(hole, objects[i])) {
                     hole.radius = Math.min(maxHoleSize, hole.radius + objects[i].radius * 0.1);
-                    objects.splice(i, 1); // Remove object
+                    objects.splice(i, 1);
                 }
             }
         }
 
-        // Check win condition
         function checkWinCondition() {
             if (hole.radius >= maxHoleSize) {
                 gameWon = true;
@@ -76,7 +80,6 @@
             }
         }
 
-        // Display the "You Won!" screen
         function showWinScreen() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = "black";
@@ -85,10 +88,9 @@
             ctx.font = "48px Arial";
             ctx.textAlign = "center";
             ctx.fillText("You Won!", canvas.width / 2, canvas.height / 2);
-            setTimeout(resetGame, 3000); // Reset after 3 seconds
+            setTimeout(resetGame, 3000);
         }
 
-        // Reset the game
         function resetGame() {
             hole.radius = 20;
             objects = [];
@@ -97,37 +99,66 @@
             requestAnimationFrame(gameLoop);
         }
 
-        // Handle mouse movement
+        function moveObjects() {
+            objects.forEach(obj => {
+                obj.x += obj.dx;
+                obj.y += obj.dy;
+
+                // Bounce off walls
+                if (obj.x - obj.radius <= 0 || obj.x + obj.radius >= canvas.width) obj.dx *= -1;
+                if (obj.y - obj.radius <= 0 || obj.y + obj.radius >= canvas.height) obj.dy *= -1;
+
+                // Prevent objects from getting stuck in corners
+                obj.x = clamp(obj.x, obj.radius, canvas.width - obj.radius);
+                obj.y = clamp(obj.y, obj.radius, canvas.height - obj.radius);
+            });
+        }
+
+        function drawWalls() {
+            walls.forEach(wall => {
+                ctx.fillStyle = "brown";
+                ctx.fillRect(wall.x, wall.y, wall.width, wall.height);
+
+                // Prevent black hole from passing through walls
+                if (
+                    hole.x + hole.radius > wall.x &&
+                    hole.x - hole.radius < wall.x + wall.width &&
+                    hole.y + hole.radius > wall.y &&
+                    hole.y - hole.radius < wall.y + wall.height
+                ) {
+                    if (hole.x < wall.x) hole.x = wall.x - hole.radius;
+                    if (hole.x > wall.x + wall.width) hole.x = wall.x + wall.width + hole.radius;
+                    if (hole.y < wall.y) hole.y = wall.y - hole.radius;
+                    if (hole.y > wall.y + wall.height) hole.y = wall.y + wall.height + hole.radius;
+                }
+            });
+        }
+
         canvas.addEventListener("mousemove", (e) => {
             const rect = canvas.getBoundingClientRect();
             hole.x = clamp(e.clientX - rect.left, hole.radius, canvas.width - hole.radius);
             hole.y = clamp(e.clientY - rect.top, hole.radius, canvas.height - hole.radius);
         });
 
-        // Handle touch movement
         canvas.addEventListener("touchmove", (e) => {
             const touch = e.touches[0];
             const rect = canvas.getBoundingClientRect();
             hole.x = clamp(touch.clientX - rect.left, hole.radius, canvas.width - hole.radius);
             hole.y = clamp(touch.clientY - rect.top, hole.radius, canvas.height - hole.radius);
-            e.preventDefault(); // Prevent scrolling
+            e.preventDefault();
         });
 
-        // Game loop
         function gameLoop() {
-            if (gameWon) return; // Stop loop if the game is won
+            if (gameWon) return;
 
-            // Clear the canvas
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Draw the black hole
             ctx.beginPath();
             ctx.arc(hole.x, hole.y, hole.radius, 0, Math.PI * 2);
             ctx.fillStyle = "black";
             ctx.fill();
             ctx.closePath();
 
-            // Draw objects
             objects.forEach(obj => {
                 ctx.beginPath();
                 ctx.arc(obj.x, obj.y, obj.radius, 0, Math.PI * 2);
@@ -136,21 +167,18 @@
                 ctx.closePath();
             });
 
-            // Consume objects and check win condition
             consumeObjects();
+            moveObjects();
+            drawWalls();
             checkWinCondition();
 
-            // Respawn objects if they get too low
-            if (objects.length < 5) {
-                createObjects(10);
-            }
+            if (objects.length < 5) createObjects(10);
 
-            // Repeat game loop
             requestAnimationFrame(gameLoop);
         }
 
-        // Initialize the game
         createObjects(50);
+        createWalls();
         gameLoop();
     </script>
 </body>
