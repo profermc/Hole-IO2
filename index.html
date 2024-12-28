@@ -31,7 +31,7 @@
         let walls = [];
         let maxHoleSize = 300;
         let gameWon = false;
-        let paused = true;
+        let paused = false;
 
         function clamp(value, min, max) {
             return Math.max(min, Math.min(max, value));
@@ -54,8 +54,12 @@
         }
 
         function createWalls() {
-            walls.push({ x: 200, y: 150, width: 300, height: 20 }); // Horizontal wall
-            walls.push({ x: 400, y: 400, width: 20, height: 300 }); // Vertical wall
+            walls = [
+                { x: 100, y: 100, width: 400, height: 20 }, // Top horizontal wall
+                { x: 100, y: 400, width: 400, height: 20 }, // Bottom horizontal wall
+                { x: 100, y: 100, width: 20, height: 300 }, // Left vertical wall
+                { x: 480, y: 100, width: 20, height: 300 }, // Right vertical wall
+            ];
         }
 
         function isColliding(hole, obj) {
@@ -121,19 +125,16 @@
                 ctx.fillStyle = "brown";
                 ctx.fillRect(wall.x, wall.y, wall.width, wall.height);
 
-                // Prevent black hole from passing through walls
-                if (
-                    hole.x + hole.radius > wall.x &&
-                    hole.x - hole.radius < wall.x + wall.width &&
-                    hole.y + hole.radius > wall.y &&
-                    hole.y - hole.radius < wall.y + wall.height
-                ) {
-                    // Resolve collision by pushing the hole back
-                    if (hole.x < wall.x) hole.x = wall.x - hole.radius;
-                    if (hole.x > wall.x + wall.width) hole.x = wall.x + wall.width + hole.radius;
-                    if (hole.y < wall.y) hole.y = wall.y - hole.radius;
-                    if (hole.y > wall.y + wall.height) hole.y = wall.y + wall.height + hole.radius;
-                }
+                // Handle wall collisions
+                const collisionLeft = hole.x + hole.radius > wall.x && hole.x < wall.x && hole.y > wall.y && hole.y < wall.y + wall.height;
+                const collisionRight = hole.x - hole.radius < wall.x + wall.width && hole.x > wall.x + wall.width && hole.y > wall.y && hole.y < wall.y + wall.height;
+                const collisionTop = hole.y + hole.radius > wall.y && hole.y < wall.y && hole.x > wall.x && hole.x < wall.x + wall.width;
+                const collisionBottom = hole.y - hole.radius < wall.y + wall.height && hole.y > wall.y + wall.height && hole.x > wall.x && hole.x < wall.x + wall.width;
+
+                if (collisionLeft) hole.x = wall.x - hole.radius; // Push left
+                if (collisionRight) hole.x = wall.x + wall.width + hole.radius; // Push right
+                if (collisionTop) hole.y = wall.y - hole.radius; // Push up
+                if (collisionBottom) hole.y = wall.y + wall.height + hole.radius; // Push down
             });
         }
 
