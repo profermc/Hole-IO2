@@ -1,7 +1,28 @@
-// Performance: Cap object count to improve rendering performance
-if (objects.length > 100) objects.splice(0, objects.length - 100);
+// Canvas setup
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+const scale = 1; // Scaling factor for responsive design
+canvas.width = window.innerWidth * scale;
+canvas.height = window.innerHeight * scale;
 
-// Enhance object creation with non-overlapping checks
+// Hole initialization
+let hole = {
+    x: canvas.width / 2,
+    y: canvas.height / 2,
+    radius: 20, // Initial size of the black hole
+};
+
+// Object storage
+let objects = [];
+let gameWon = false;
+const maxHoleSize = 300; // Maximum size of the black hole
+
+// Utility functions
+function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+}
+
+// Create objects with collision avoidance
 function createObjects(count) {
     for (let i = 0; i < count; i++) {
         let x, y, radius, valid;
@@ -19,7 +40,7 @@ function createObjects(count) {
     }
 }
 
-// Dynamic growth to balance gameplay
+// Collision detection and growth
 function isColliding(hole, obj) {
     const dx = hole.x - obj.x;
     const dy = hole.y - obj.y;
@@ -32,7 +53,7 @@ function isColliding(hole, obj) {
     return false;
 }
 
-// Moving objects for dynamic gameplay
+// Move objects for dynamic gameplay
 function moveObjects() {
     objects.forEach(obj => {
         obj.x += Math.random() * 2 - 1;
@@ -42,7 +63,7 @@ function moveObjects() {
     });
 }
 
-// Add time limit for win condition
+// Check win condition
 const timeLimit = 120000; // 2 minutes
 let startTime = Date.now();
 
@@ -54,39 +75,57 @@ function checkWin() {
     }
 }
 
-// Audio feedback for better immersion
-const eatSound = new Audio("eat.mp3"); // Add a sound file named 'eat.mp3'
-const winSound = new Audio("win.mp3"); // Add a sound file named 'win.mp3'
+// Show win screen
+function showWinScreen() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "white";
+    ctx.font = "48px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("You Won!", canvas.width / 2, canvas.height / 2);
+    setTimeout(() => {
+        resetGame();
+    }, 3000);
+}
+
+// Reset game
+function resetGame() {
+    hole.radius = 20;
+    objects = [];
+    createObjects(50);
+    gameWon = false;
+    startTime = Date.now();
+    gameLoop();
+}
+
+// Add sound effects
+const eatSound = new Audio("eat.mp3");
+const winSound = new Audio("win.mp3");
 
 function playEatSound() {
     eatSound.play();
 }
 
 function playWinSound() {
-    winSound.play();
+    if (gameWon) {
+        winSound.play();
+    }
 }
 
-// Visual absorption effect
-function absorbEffect(obj) {
-    ctx.beginPath();
-    ctx.arc(obj.x, obj.y, obj.radius, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
-    ctx.fill();
-    ctx.closePath();
-}
-
-// Integrate enhancements into the game loop
+// Game loop
 function gameLoop() {
+    // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw the hole
+    // Draw black hole
     ctx.beginPath();
     ctx.arc(hole.x, hole.y, hole.radius, 0, Math.PI * 2);
     ctx.fillStyle = "black";
     ctx.fill();
     ctx.closePath();
 
-    // Draw dots and check collisions
+    // Draw objects and check collisions
     for (let i = objects.length - 1; i >= 0; i--) {
         const obj = objects[i];
         ctx.beginPath();
@@ -97,26 +136,46 @@ function gameLoop() {
 
         if (isColliding(hole, obj)) {
             playEatSound();
-            absorbEffect(obj);
             objects.splice(i, 1);
         }
     }
 
-    // Move objects for dynamic gameplay
+    // Move objects
     moveObjects();
 
-    // Allow the hole to extend slightly beyond the edges
-    hole.x = clamp(hole.x, -hole.radius / 2, canvas.width / scale + hole.radius / 2);
-    hole.y = clamp(hole.y, -hole.radius / 2, canvas.height / scale + hole.radius / 2);
+    // Clamp hole position
+    hole.x = clamp(hole.x, hole.radius, canvas.width - hole.radius);
+    hole.y = clamp(hole.y, hole.radius, canvas.height - hole.radius);
 
-    // Check for win condition
+    // Check win condition
     checkWin();
 
-    // Respawn dots if necessary
+    // Respawn objects
     if (objects.length < 5 && !gameWon) {
         createObjects(10);
     }
 
-    requestAnimationFrame(gameLoop);
+    // Repeat loop
+    if (!gameWon) requestAnimationFrame(gameLoop);
 }
-      
+
+// Input handling
+window.addEventListener("mousemove", (e) => {
+    const rect = canvas.getBoundingClientRect();
+    hole.x = (e.clientX - rect.left) * scale;
+    hole.y = (e.clientY - rect.top) * scale;
+});
+
+canvas.addEventListener("touchmove", (e) => {
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    hole.x = (touch.clientX - rect.left) * scale;
+    hole.y = (touch.clientY - rect.top) * scale;
+    e.preventDefault(); // Prevent scrolling
+});
+
+// Start game
+createObjects(50);
+gameLoop();
+
+
