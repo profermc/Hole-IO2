@@ -47,18 +47,18 @@
                     y, 
                     radius, 
                     color: `hsl(${Math.random() * 360}, 70%, 60%)`,
-                    dx: Math.random() * 2 - 1, // Random horizontal speed
-                    dy: Math.random() * 2 - 1, // Random vertical speed
+                    dx: Math.random() * 2 - 1,
+                    dy: Math.random() * 2 - 1,
                 });
             }
         }
 
         function createWalls() {
             walls = [
-                { x: 100, y: 100, width: 400, height: 20 }, // Top horizontal wall
-                { x: 100, y: 400, width: 400, height: 20 }, // Bottom horizontal wall
-                { x: 100, y: 100, width: 20, height: 300 }, // Left vertical wall
-                { x: 480, y: 100, width: 20, height: 300 }, // Right vertical wall
+                { x: canvas.width / 4, y: canvas.height / 4, width: canvas.width / 2, height: 20 }, // Horizontal top
+                { x: canvas.width / 4, y: canvas.height - canvas.height / 4, width: canvas.width / 2, height: 20 }, // Horizontal bottom
+                { x: canvas.width / 4, y: canvas.height / 4, width: 20, height: canvas.height / 2 }, // Vertical left
+                { x: canvas.width - canvas.width / 4 - 20, y: canvas.height / 4, width: 20, height: canvas.height / 2 }, // Vertical right
             ];
         }
 
@@ -110,7 +110,7 @@
                 obj.x += obj.dx;
                 obj.y += obj.dy;
 
-                // Bounce off walls
+                // Bounce off screen edges
                 if (obj.x - obj.radius <= 0 || obj.x + obj.radius >= canvas.width) obj.dx *= -1;
                 if (obj.y - obj.radius <= 0 || obj.y + obj.radius >= canvas.height) obj.dy *= -1;
 
@@ -126,15 +126,17 @@
                 ctx.fillRect(wall.x, wall.y, wall.width, wall.height);
 
                 // Handle wall collisions
-                const collisionLeft = hole.x + hole.radius > wall.x && hole.x < wall.x && hole.y > wall.y && hole.y < wall.y + wall.height;
-                const collisionRight = hole.x - hole.radius < wall.x + wall.width && hole.x > wall.x + wall.width && hole.y > wall.y && hole.y < wall.y + wall.height;
-                const collisionTop = hole.y + hole.radius > wall.y && hole.y < wall.y && hole.x > wall.x && hole.x < wall.x + wall.width;
-                const collisionBottom = hole.y - hole.radius < wall.y + wall.height && hole.y > wall.y + wall.height && hole.x > wall.x && hole.x < wall.x + wall.width;
-
-                if (collisionLeft) hole.x = wall.x - hole.radius; // Push left
-                if (collisionRight) hole.x = wall.x + wall.width + hole.radius; // Push right
-                if (collisionTop) hole.y = wall.y - hole.radius; // Push up
-                if (collisionBottom) hole.y = wall.y + wall.height + hole.radius; // Push down
+                if (
+                    hole.x + hole.radius > wall.x &&
+                    hole.x - hole.radius < wall.x + wall.width &&
+                    hole.y + hole.radius > wall.y &&
+                    hole.y - hole.radius < wall.y + wall.height
+                ) {
+                    if (hole.x < wall.x) hole.x = wall.x - hole.radius; // Left collision
+                    if (hole.x > wall.x + wall.width) hole.x = wall.x + wall.width + hole.radius; // Right collision
+                    if (hole.y < wall.y) hole.y = wall.y - hole.radius; // Top collision
+                    if (hole.y > wall.y + wall.height) hole.y = wall.y + wall.height + hole.radius; // Bottom collision
+                }
             });
         }
 
@@ -157,7 +159,7 @@
         }
 
         window.addEventListener("keydown", (e) => {
-            if (e.key === "Escape") {
+            if (e.key.toLowerCase() === "p") {
                 togglePause();
             }
         });
